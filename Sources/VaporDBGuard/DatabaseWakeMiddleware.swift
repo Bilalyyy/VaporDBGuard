@@ -11,21 +11,24 @@ import SQLKit
 import PostgresNIO
 
 
-public struct DatabaseWakeMiddleware: AsyncMiddleware {
+struct DatabaseWakeMiddleware: AsyncMiddleware {
+    private let state: DatabaseWakeState
 
-    public init() { }
+    public init(suspiciousAfter: TimeInterval = 240) {
+        self.state = DatabaseWakeState(suspiciousAfter: suspiciousAfter)
+    }
 
-    public func respond(to req: Request, chainingTo next: any AsyncResponder) async throws -> Response {
+    func respond(to req: Request, chainingTo next: any AsyncResponder) async throws -> Response {
         try await ensureDatabaseIsReady(for: req)
 
         let response = try await next.respond(to: req)
-        await req.application.databaseWake.state.markDatabaseSuccess()
+        await state.markDatabaseSuccess()
+
         req.logger.debug("Database wake middleware recorded successful DB access after request", metadata: logMetadata(for: req))
         return response
     }
 
     private func ensureDatabaseIsReady(for req: Request) async throws {
-        let state = req.application.databaseWake.state
 
         let decision = await state.probeTaskIfNeeded(
             now: Date(),
