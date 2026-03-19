@@ -11,8 +11,11 @@ import SQLKit
 import PostgresNIO
 
 
-struct DatabaseWakeMiddleware: AsyncMiddleware {
-    func respond(to req: Request, chainingTo next: any AsyncResponder) async throws -> Response {
+public struct DatabaseWakeMiddleware: AsyncMiddleware {
+
+    public init() { }
+
+    public func respond(to req: Request, chainingTo next: any AsyncResponder) async throws -> Response {
         try await ensureDatabaseIsReady(for: req)
 
         let response = try await next.respond(to: req)
