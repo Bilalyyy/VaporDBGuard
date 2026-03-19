@@ -24,7 +24,7 @@ struct DatabaseWakeMiddleware: AsyncMiddleware {
         let response = try await next.respond(to: req)
         await state.markDatabaseSuccess()
 
-        req.logger.debug("Database wake middleware recorded successful DB access after request", metadata: logMetadata(for: req))
+        req.logger.debug("[VaporDBGuard][DatabaseWakeMiddleware] recorded successful request access", metadata: logMetadata(for: req))
         return response
     }
 
@@ -41,13 +41,13 @@ struct DatabaseWakeMiddleware: AsyncMiddleware {
 
         switch decision {
         case .notNeeded(let reason):
-            req.logger.debug("Database wake probe skipped", metadata: logMetadata(for: req, extra: ["reason": .string(reason)]))
+            req.logger.debug("[VaporDBGuard][DatabaseWakeMiddleware] Database wake probe skipped", metadata: logMetadata(for: req, extra: ["reason": .string(reason)]))
             return
         case .joinExisting(let probeTask, let reason):
-            req.logger.info("Database wake probe waiting on existing task", metadata: logMetadata(for: req, extra: ["reason": .string(reason)]))
+            req.logger.info("[VaporDBGuard][DatabaseWakeMiddleware] Database wake probe waiting on existing task", metadata: logMetadata(for: req, extra: ["reason": .string(reason)]))
             try await awaitProbeTask(probeTask, state: state, req: req)
         case .startNew(let probeTask, let reason):
-            req.logger.info("Database wake probe starting", metadata: logMetadata(for: req, extra: ["reason": .string(reason)]))
+            req.logger.info("[VaporDBGuard][DatabaseWakeMiddleware] Database wake probe starting", metadata: logMetadata(for: req, extra: ["reason": .string(reason)]))
             try await awaitProbeTask(probeTask, state: state, req: req)
         }
     }
@@ -60,25 +60,25 @@ struct DatabaseWakeMiddleware: AsyncMiddleware {
         do {
             try await probeTask.value
             await state.finishProbe()
-            req.logger.info("Database wake probe succeeded", metadata: logMetadata(for: req))
+            req.logger.info("[VaporDBGuard][DatabaseWakeMiddleware] Database wake probe succeeded", metadata: logMetadata(for: req))
         } catch {
             await state.failProbe()
-            req.logger.error("Database wake probe failed", metadata: logMetadata(for: req, extra: ["error": .string(String(reflecting: error))]))
+            req.logger.error("[VaporDBGuard][DatabaseWakeMiddleware] Database wake probe failed", metadata: logMetadata(for: req, extra: ["error": .string(String(reflecting: error))]))
             throw error
         }
     }
 
     private func runProbe(on req: Request) async throws {
         do {
-            req.logger.debug("Database wake probe executing SQL health check", metadata: logMetadata(for: req))
+            req.logger.debug("[VaporDBGuard][DatabaseWakeMiddleware] Database wake probe executing SQL health check", metadata: logMetadata(for: req))
             try await probeDatabase(on: req)
         } catch {
             guard isTransientDatabaseConnectionError(error) else {
-                req.logger.error("Database wake probe hit a non-transient error", metadata: logMetadata(for: req, extra: ["error": .string(String(reflecting: error))]))
+                req.logger.error("[VaporDBGuard][DatabaseWakeMiddleware] Database wake probe hit a non-transient error", metadata: logMetadata(for: req, extra: ["error": .string(String(reflecting: error))]))
                 throw error
             }
 
-            req.logger.warning("Database wake probe hit a transient PostgreSQL connection error, retrying once", metadata: logMetadata(for: req, extra: ["error": .string(String(reflecting: error))]))
+            req.logger.warning("[VaporDBGuard][DatabaseWakeMiddleware] Database wake probe hit a transient PostgreSQL connection error, retrying once", metadata: logMetadata(for: req, extra: ["error": .string(String(reflecting: error))]))
             try await probeDatabase(on: req)
         }
     }

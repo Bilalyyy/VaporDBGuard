@@ -28,7 +28,7 @@ actor DatabaseWakeState {
     ) -> ProbeDecision {
         if let lastSuccessfulRequestAt,
            now.timeIntervalSince(lastSuccessfulRequestAt) < suspiciousAfter {
-            return .notNeeded(reason: "last successful DB access is still fresh")
+            return .notNeeded(reason: "last successful request access is still fresh")
         }
 
         if let currentProbe {
@@ -39,9 +39,9 @@ actor DatabaseWakeState {
         currentProbe = task
         if let lastSuccessfulRequestAt {
             let idleFor = Int(now.timeIntervalSince(lastSuccessfulRequestAt))
-            return .startNew(task: task, reason: "last successful DB access was \(idleFor)s ago")
+            return .startNew(task: task, reason: "last successful request access was \(idleFor)s ago")
         } else {
-            return .startNew(task: task, reason: "no successful DB access recorded yet")
+            return .startNew(task: task, reason: "no successful request access recorded yet")
         }
     }
 
