@@ -19,6 +19,7 @@ struct DatabaseWakeMiddleware: AsyncMiddleware {
     }
 
     func respond(to req: Request, chainingTo next: any AsyncResponder) async throws -> Response {
+        // Never retry the user's real handler. We only warm up the DB path first.
         try await ensureDatabaseIsReady(for: req)
 
         let response = try await next.respond(to: req)
@@ -29,7 +30,6 @@ struct DatabaseWakeMiddleware: AsyncMiddleware {
     }
 
     private func ensureDatabaseIsReady(for req: Request) async throws {
-
         let decision = await state.probeTaskIfNeeded(
             now: Date(),
             makeTask: {
@@ -79,12 +79,16 @@ struct DatabaseWakeMiddleware: AsyncMiddleware {
             }
 
             req.logger.warning("[VaporDBGuard][DatabaseWakeMiddleware] Database wake probe hit a transient PostgreSQL connection error, retrying once", metadata: logMetadata(for: req, extra: ["error": .string(String(reflecting: error))]))
+            // A single retry is enough to cover the wake-up case without turning
+            // the probe itself into an unbounded recovery loop.
             try await probeDatabase(on: req)
         }
     }
 
     private func probeDatabase(on req: Request) async throws {
         guard let sql = req.db as? any SQLDatabase else {
+            // If the configured database is not SQL-backed, the middleware has
+            // nothing to probe and simply acts as a pass-through.
             return
         }
 
@@ -92,6 +96,8 @@ struct DatabaseWakeMiddleware: AsyncMiddleware {
     }
 
     private func isTransientDatabaseConnectionError(_ error: any Error) -> Bool {
+        // We keep this intentionally narrow: only connection-level failures that
+        // are known to happen around idle/suspend wake-up should trigger a retry.
         if let error = error as? any DatabaseError, error.isConnectionClosed {
             return true
         }
