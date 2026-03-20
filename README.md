@@ -1,5 +1,7 @@
 # VaporDBGuard
 
+[![CI](https://github.com/bilalyyy/VaporDBGuard/actions/workflows/ci.yml/badge.svg)](https://github.com/bilalyyy/VaporDBGuard/actions/workflows/ci.yml)
+
 Protect your Vapor app from stale Postgres connections after idle or resume.
 
 `VaporDBGuard` is a lightweight middleware for Vapor + Fluent + Postgres. It
@@ -61,6 +63,23 @@ Then add the product to your target:
 .product(name: "VaporDBGuard", package: "VaporDBGuard")
 ```
 
+## Compatibility
+
+`VaporDBGuard` is currently intended for:
+
+- Swift 6.2
+- Vapor 4
+- Fluent 4
+- FluentPostgresDriver 2
+- Postgres-backed Vapor applications
+
+The package is validated in CI on:
+
+- macOS
+- Ubuntu
+
+It is intentionally focused on server-side Vapor usage, including Linux-based deployments.
+
 ## Usage
 
 Register the middleware in `configure.swift`:
@@ -75,6 +94,45 @@ You can also customize the idle threshold:
 
 ```swift
 app.dbGuard.use(suspiciousAfter: 240)
+```
+
+## Integration example
+
+A realistic `configure.swift` setup looks like this:
+
+```swift
+import Fluent
+import FluentPostgresDriver
+import Vapor
+import VaporDBGuard
+
+public func configure(_ app: Application) throws {
+    app.databases.use(.postgres(
+        hostname: Environment.get("DATABASE_HOST") ?? "localhost",
+        username: Environment.get("DATABASE_USERNAME") ?? "postgres",
+        password: Environment.get("DATABASE_PASSWORD") ?? "",
+        database: Environment.get("DATABASE_NAME") ?? "app"
+    ), as: .psql)
+
+    // 1. Static assets first.
+    app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
+
+    // 2. Then the DB wake guard before your DB-backed routes run.
+    app.dbGuard.use(suspiciousAfter: 240)
+}
+```
+
+That placement keeps static assets out of the guarded path while still protecting your database-backed routes.
+
+If you prefer to protect only a subset of routes, you can attach the middleware
+to a route group instead of the global application chain:
+
+```swift
+let api = app.grouped(DatabaseWakeMiddleware(suspiciousAfter: 240))
+
+api.get("dashboard") { req async throws in
+    "Protected route"
+}
 ```
 
 ## Configuration
@@ -114,6 +172,8 @@ In practice:
 - let static file middleware run before it when possible
 - keep it in front of the routes you want to protect
 - tune `suspiciousAfter` if your app receives frequent non-DB traffic
+
+If you only want to protect a subset of routes, you can also register the middleware on a route group instead of the global application chain.
 
 ## Scope
 
