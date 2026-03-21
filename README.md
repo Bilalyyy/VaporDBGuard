@@ -1,6 +1,10 @@
 # VaporDBGuard
 
 [![CI](https://github.com/bilalyyy/VaporDBGuard/actions/workflows/ci.yml/badge.svg)](https://github.com/bilalyyy/VaporDBGuard/actions/workflows/ci.yml)
+![Swift](https://img.shields.io/badge/swift-6.2+-orange?style=flat-square)
+![Vapor](https://img.shields.io/badge/vapor-4.x-green?style=flat-square)
+![Fluent](https://img.shields.io/badge/fluent-4.x-yellow?style=flat-square)
+![Postgres](https://img.shields.io/badge/postgres-required-blue?style=flat-square)
 
 Protect your Vapor app from stale Postgres connections after idle or resume.
 
