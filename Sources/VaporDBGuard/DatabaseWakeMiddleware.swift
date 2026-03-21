@@ -11,14 +11,14 @@ import SQLKit
 import PostgresNIO
 
 
-struct DatabaseWakeMiddleware: AsyncMiddleware {
+public struct DatabaseWakeMiddleware: AsyncMiddleware {
     private let state: DatabaseWakeState
 
     public init(suspiciousAfter: TimeInterval = 240) {
         self.state = DatabaseWakeState(suspiciousAfter: suspiciousAfter)
     }
 
-    func respond(to req: Request, chainingTo next: any AsyncResponder) async throws -> Response {
+    public func respond(to req: Request, chainingTo next: any AsyncResponder) async throws -> Response {
         // Never retry the user's real handler. We only warm up the DB path first.
         try await ensureDatabaseIsReady(for: req)
 
